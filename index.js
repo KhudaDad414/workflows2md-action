@@ -6,7 +6,7 @@ async function run() {
     const input = core.getInput('input') || '.github/workflows';
     const output = core.getInput('output') || '.github/README.md';
     const workflows = getWorkflowsMarkdown(input);
-    core.setOutput(writeFile(output, workflows));
+    writeFile(output, workflows);
   } catch (error) {
     core.setFailed(error.message);
   }
