@@ -16,5 +16,5 @@ jobs:
       uses: ./
     - uses: EndBug/add-and-commit@v7
       with:
-       cwd: '$GITHUB_WORKSPACE'
+       cwd: ${{env.GITHUB_WORKSPACE}}
        add: ${steps.workflows2md.outputs.path}
