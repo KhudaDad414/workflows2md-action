@@ -2763,7 +2763,7 @@ function parseWorkflows(WorkflowPaths) {
   return orderedWorkflows;
 }
 function getEventTypes(eventName, event) {
-  let eventTypes = event ? event.types || event.branches : null;
+  let eventTypes = event?.types || event?.branches;
   if (!eventTypes) {
     if (eventName === 'schedule') {
       eventTypes = event.map((type) => type[Object.keys(type)[0]]);
@@ -7125,7 +7125,7 @@ async function run() {
     const input = core.getInput('input') || '.github/workflows';
     const output = core.getInput('output') || '.github/README.md';
     const workflows = getWorkflowsMarkdown(input);
-    core.setOutput(writeFile(output, workflows));
+    writeFile(output, workflows);
   } catch (error) {
     core.setFailed(error.message);
   }
