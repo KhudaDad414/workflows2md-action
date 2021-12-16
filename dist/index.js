@@ -2763,7 +2763,7 @@ function parseWorkflows(WorkflowPaths) {
   return orderedWorkflows;
 }
 function getEventTypes(eventName, event) {
-  let eventTypes = event?.types || event?.branches;
+  let eventTypes = event ? event.types || event.branches : null;
   if (!eventTypes) {
     if (eventName === 'schedule') {
       eventTypes = event.map((type) => type[Object.keys(type)[0]]);
