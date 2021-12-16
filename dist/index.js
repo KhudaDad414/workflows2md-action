@@ -7119,13 +7119,18 @@ var __webpack_exports__ = {};
 (() => {
 const core = __nccwpck_require__(2186);
 const { getWorkflowsMarkdown, writeFile } = __nccwpck_require__(6318);
+const path = __nccwpck_require__(5622);
+
 // most @actions toolkit packages have async methods
 async function run() {
   try {
     const input = core.getInput('input') || '.github/workflows';
     const output = core.getInput('output') || '.github/README.md';
-    const workflows = getWorkflowsMarkdown(input);
-    writeFile(output, workflows);
+    const workflows = getWorkflowsMarkdown(
+      path.join(process.env.GITHUB_WORKSPACE, input)
+    );
+    writeFile(path.join(process.env.GITHUB_WORKSPACE, output), workflows);
+    core.setOutput('path', output);
   } catch (error) {
     core.setFailed(error.message);
   }
