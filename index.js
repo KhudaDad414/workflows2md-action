@@ -1,18 +1,12 @@
 const core = require('@actions/core');
-const wait = require('./wait');
-
-
+const { getWorkflowsMarkdown, writeFile } = require('workflows-to-markdown');
 // most @actions toolkit packages have async methods
 async function run() {
   try {
-    const ms = core.getInput('milliseconds');
-    core.info(`Waiting ${ms} milliseconds ...`);
-
-    core.debug((new Date()).toTimeString()); // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-    await wait(parseInt(ms));
-    core.info((new Date()).toTimeString());
-
-    core.setOutput('time', new Date().toTimeString());
+    const input = core.getInput('input') || '.github/workflows';
+    const output = core.getInput('output') || '.github/README.md';
+    const workflows = getWorkflowsMarkdown(input);
+    core.setOutput(writeFile(output, workflows));
   } catch (error) {
     core.setFailed(error.message);
   }
