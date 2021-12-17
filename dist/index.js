@@ -27,7 +27,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.issue = exports.issueCommand = void 0;
-const os = __importStar(__nccwpck_require__(2087));
+const os = __importStar(__nccwpck_require__(2037));
 const utils_1 = __nccwpck_require__(5278);
 /**
  * Commands
@@ -138,8 +138,8 @@ exports.getIDToken = exports.getState = exports.saveState = exports.group = expo
 const command_1 = __nccwpck_require__(7351);
 const file_command_1 = __nccwpck_require__(717);
 const utils_1 = __nccwpck_require__(5278);
-const os = __importStar(__nccwpck_require__(2087));
-const path = __importStar(__nccwpck_require__(5622));
+const os = __importStar(__nccwpck_require__(2037));
+const path = __importStar(__nccwpck_require__(1017));
 const oidc_utils_1 = __nccwpck_require__(8041);
 /**
  * The code to exit an action
@@ -448,8 +448,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.issueCommand = void 0;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const fs = __importStar(__nccwpck_require__(5747));
-const os = __importStar(__nccwpck_require__(2087));
+const fs = __importStar(__nccwpck_require__(7147));
+const os = __importStar(__nccwpck_require__(2037));
 const utils_1 = __nccwpck_require__(5278);
 function issueCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
@@ -671,8 +671,8 @@ exports.PersonalAccessTokenCredentialHandler = PersonalAccessTokenCredentialHand
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const http = __nccwpck_require__(8605);
-const https = __nccwpck_require__(7211);
+const http = __nccwpck_require__(3685);
+const https = __nccwpck_require__(5687);
 const pm = __nccwpck_require__(6443);
 let tunnel;
 var HttpCodes;
@@ -2339,564 +2339,15 @@ exports.enLocaleLoader = enLocaleLoader;
 
 /***/ }),
 
-/***/ 4294:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-module.exports = __nccwpck_require__(4219);
-
-
-/***/ }),
-
-/***/ 4219:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-
-var net = __nccwpck_require__(1631);
-var tls = __nccwpck_require__(4016);
-var http = __nccwpck_require__(8605);
-var https = __nccwpck_require__(7211);
-var events = __nccwpck_require__(8614);
-var assert = __nccwpck_require__(2357);
-var util = __nccwpck_require__(1669);
-
-
-exports.httpOverHttp = httpOverHttp;
-exports.httpsOverHttp = httpsOverHttp;
-exports.httpOverHttps = httpOverHttps;
-exports.httpsOverHttps = httpsOverHttps;
-
-
-function httpOverHttp(options) {
-  var agent = new TunnelingAgent(options);
-  agent.request = http.request;
-  return agent;
-}
-
-function httpsOverHttp(options) {
-  var agent = new TunnelingAgent(options);
-  agent.request = http.request;
-  agent.createSocket = createSecureSocket;
-  agent.defaultPort = 443;
-  return agent;
-}
-
-function httpOverHttps(options) {
-  var agent = new TunnelingAgent(options);
-  agent.request = https.request;
-  return agent;
-}
-
-function httpsOverHttps(options) {
-  var agent = new TunnelingAgent(options);
-  agent.request = https.request;
-  agent.createSocket = createSecureSocket;
-  agent.defaultPort = 443;
-  return agent;
-}
-
-
-function TunnelingAgent(options) {
-  var self = this;
-  self.options = options || {};
-  self.proxyOptions = self.options.proxy || {};
-  self.maxSockets = self.options.maxSockets || http.Agent.defaultMaxSockets;
-  self.requests = [];
-  self.sockets = [];
-
-  self.on('free', function onFree(socket, host, port, localAddress) {
-    var options = toOptions(host, port, localAddress);
-    for (var i = 0, len = self.requests.length; i < len; ++i) {
-      var pending = self.requests[i];
-      if (pending.host === options.host && pending.port === options.port) {
-        // Detect the request to connect same origin server,
-        // reuse the connection.
-        self.requests.splice(i, 1);
-        pending.request.onSocket(socket);
-        return;
-      }
-    }
-    socket.destroy();
-    self.removeSocket(socket);
-  });
-}
-util.inherits(TunnelingAgent, events.EventEmitter);
-
-TunnelingAgent.prototype.addRequest = function addRequest(req, host, port, localAddress) {
-  var self = this;
-  var options = mergeOptions({request: req}, self.options, toOptions(host, port, localAddress));
-
-  if (self.sockets.length >= this.maxSockets) {
-    // We are over limit so we'll add it to the queue.
-    self.requests.push(options);
-    return;
-  }
-
-  // If we are under maxSockets create a new one.
-  self.createSocket(options, function(socket) {
-    socket.on('free', onFree);
-    socket.on('close', onCloseOrRemove);
-    socket.on('agentRemove', onCloseOrRemove);
-    req.onSocket(socket);
-
-    function onFree() {
-      self.emit('free', socket, options);
-    }
-
-    function onCloseOrRemove(err) {
-      self.removeSocket(socket);
-      socket.removeListener('free', onFree);
-      socket.removeListener('close', onCloseOrRemove);
-      socket.removeListener('agentRemove', onCloseOrRemove);
-    }
-  });
-};
-
-TunnelingAgent.prototype.createSocket = function createSocket(options, cb) {
-  var self = this;
-  var placeholder = {};
-  self.sockets.push(placeholder);
-
-  var connectOptions = mergeOptions({}, self.proxyOptions, {
-    method: 'CONNECT',
-    path: options.host + ':' + options.port,
-    agent: false,
-    headers: {
-      host: options.host + ':' + options.port
-    }
-  });
-  if (options.localAddress) {
-    connectOptions.localAddress = options.localAddress;
-  }
-  if (connectOptions.proxyAuth) {
-    connectOptions.headers = connectOptions.headers || {};
-    connectOptions.headers['Proxy-Authorization'] = 'Basic ' +
-        new Buffer(connectOptions.proxyAuth).toString('base64');
-  }
-
-  debug('making CONNECT request');
-  var connectReq = self.request(connectOptions);
-  connectReq.useChunkedEncodingByDefault = false; // for v0.6
-  connectReq.once('response', onResponse); // for v0.6
-  connectReq.once('upgrade', onUpgrade);   // for v0.6
-  connectReq.once('connect', onConnect);   // for v0.7 or later
-  connectReq.once('error', onError);
-  connectReq.end();
-
-  function onResponse(res) {
-    // Very hacky. This is necessary to avoid http-parser leaks.
-    res.upgrade = true;
-  }
-
-  function onUpgrade(res, socket, head) {
-    // Hacky.
-    process.nextTick(function() {
-      onConnect(res, socket, head);
-    });
-  }
-
-  function onConnect(res, socket, head) {
-    connectReq.removeAllListeners();
-    socket.removeAllListeners();
-
-    if (res.statusCode !== 200) {
-      debug('tunneling socket could not be established, statusCode=%d',
-        res.statusCode);
-      socket.destroy();
-      var error = new Error('tunneling socket could not be established, ' +
-        'statusCode=' + res.statusCode);
-      error.code = 'ECONNRESET';
-      options.request.emit('error', error);
-      self.removeSocket(placeholder);
-      return;
-    }
-    if (head.length > 0) {
-      debug('got illegal response body from proxy');
-      socket.destroy();
-      var error = new Error('got illegal response body from proxy');
-      error.code = 'ECONNRESET';
-      options.request.emit('error', error);
-      self.removeSocket(placeholder);
-      return;
-    }
-    debug('tunneling connection has established');
-    self.sockets[self.sockets.indexOf(placeholder)] = socket;
-    return cb(socket);
-  }
-
-  function onError(cause) {
-    connectReq.removeAllListeners();
-
-    debug('tunneling socket could not be established, cause=%s\n',
-          cause.message, cause.stack);
-    var error = new Error('tunneling socket could not be established, ' +
-                          'cause=' + cause.message);
-    error.code = 'ECONNRESET';
-    options.request.emit('error', error);
-    self.removeSocket(placeholder);
-  }
-};
-
-TunnelingAgent.prototype.removeSocket = function removeSocket(socket) {
-  var pos = this.sockets.indexOf(socket)
-  if (pos === -1) {
-    return;
-  }
-  this.sockets.splice(pos, 1);
-
-  var pending = this.requests.shift();
-  if (pending) {
-    // If we have pending requests and a socket gets closed a new one
-    // needs to be created to take over in the pool for the one that closed.
-    this.createSocket(pending, function(socket) {
-      pending.request.onSocket(socket);
-    });
-  }
-};
-
-function createSecureSocket(options, cb) {
-  var self = this;
-  TunnelingAgent.prototype.createSocket.call(self, options, function(socket) {
-    var hostHeader = options.request.getHeader('host');
-    var tlsOptions = mergeOptions({}, self.options, {
-      socket: socket,
-      servername: hostHeader ? hostHeader.replace(/:.*$/, '') : options.host
-    });
-
-    // 0 is dummy port for v0.6
-    var secureSocket = tls.connect(0, tlsOptions);
-    self.sockets[self.sockets.indexOf(socket)] = secureSocket;
-    cb(secureSocket);
-  });
-}
-
-
-function toOptions(host, port, localAddress) {
-  if (typeof host === 'string') { // since v0.10
-    return {
-      host: host,
-      port: port,
-      localAddress: localAddress
-    };
-  }
-  return host; // for v0.11 or later
-}
-
-function mergeOptions(target) {
-  for (var i = 1, len = arguments.length; i < len; ++i) {
-    var overrides = arguments[i];
-    if (typeof overrides === 'object') {
-      var keys = Object.keys(overrides);
-      for (var j = 0, keyLen = keys.length; j < keyLen; ++j) {
-        var k = keys[j];
-        if (overrides[k] !== undefined) {
-          target[k] = overrides[k];
-        }
-      }
-    }
-  }
-  return target;
-}
-
-
-var debug;
-if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
-  debug = function() {
-    var args = Array.prototype.slice.call(arguments);
-    if (typeof args[0] === 'string') {
-      args[0] = 'TUNNEL: ' + args[0];
-    } else {
-      args.unshift('TUNNEL:');
-    }
-    console.error.apply(console, args);
-  }
-} else {
-  debug = function() {};
-}
-exports.debug = debug; // for test
-
-
-/***/ }),
-
-/***/ 6318:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-module.exports = __nccwpck_require__(34);
-
-
-/***/ }),
-
-/***/ 34:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const parseWorkflows = __nccwpck_require__(2083);
-const cronstrue = __nccwpck_require__(622);
-const { getMarkdownHeaderId, toTitleCase, writeFile } = __nccwpck_require__(6751);
-
-function getWorkflowsMarkdown(path) {
-  try {
-    const workflowsWithEvents = parseWorkflows(path);
-    const workflowTriggersMarkdown = workflowsToTable(workflowsWithEvents);
-    const workflowsMarkdown = workflowsInfoToMarkdown(workflowsWithEvents);
-
-    return workflowTriggersMarkdown + workflowsMarkdown;
-  } catch (error) {
-    throw error;
-  }
-}
-function workflowsInfoToMarkdown(workflows) {
-  const steps = [];
-  Object.entries(workflows).forEach(([, event]) => {
-    Object.entries(event).forEach(([, eventType]) => {
-      steps.push(...eventType);
-    });
-  });
-
-  const stepsWithoutDuplicates = removeDuplicates(steps);
-  return stepsWithoutDuplicates.reduce((acc, step) => {
-    acc += `| [${step.workflowName}](${step.workflowPath
-      .replace(/\\/g, '/')
-      .substring(4)}) | ${step.desc} |\n`;
-    return acc;
-  }, `## Workflows \n\n | Workflow | Description | \n | --- | --- | \n`);
-}
-//remove duplicated objects from array
-function removeDuplicates(arr) {
-  return arr.filter(
-    (workflow, index, self) =>
-      index ===
-      self.findIndex(
-        (t) =>
-          t.workflowName === workflow.workflowName &&
-          t.workflowPath === workflow.workflowPath
-      )
-  );
-}
-
-function workflowsToTable(workflows) {
-  const table = Object.entries(workflows).reduce((acc, [eventName, value]) => {
-    // generate title and headers
-    const event_talbe = Object.entries(value).reduce(
-      (acc, [key, value]) => {
-        acc[0] += `<th>${
-          eventName === 'schedule' ? cronstrue.toString(key) : key
-        } </th>`;
-
-        acc[1] +=
-          '<td>' +
-          value.reduce(
-            (acc, details) =>
-              (acc += `<li><a href='#${getMarkdownHeaderId(
-                details.workflowName
-              )}'>${details.workflowName}</a></li>`),
-            '<ul>'
-          );
-        acc[1] += '</ul>';
-
-        return acc;
-      },
-      [`\n<th rowspan=2>${toTitleCase(eventName)}</th>`, '']
-    );
-    acc += `<tr>${event_talbe[0]}</tr>\n<tr>${event_talbe[1]}</tr>`;
-    return acc;
-  }, '\n');
-  return `## Event-Workflow Map\n\n<table>${table}</table>\n\n`;
-}
-
-module.exports = {
-  getWorkflowsMarkdown,
-  writeFile,
-};
-
-
-/***/ }),
-
-/***/ 2083:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const fs = __nccwpck_require__(5747);
-const path = __nccwpck_require__(5622);
-const yaml = __nccwpck_require__(8766);
-const { getFilesPath } = __nccwpck_require__(6751);
-
-function readWorkflowFile(workflow) {
-  const doc = yaml.load(fs.readFileSync(workflow));
-  return { ...doc, path: workflow };
-}
-function orderWorkflows(workflows) {
-  return Object.entries(workflows)
-    .sort(
-      ([, event], [, event2]) =>
-        Object.keys(event2).length - Object.keys(event).length
-    )
-    .reduce(
-      (acc, [eventName, event]) => ({
-        ...acc,
-        [eventName]: Object.entries(event)
-          .sort(([, eventType1], [, eventType2]) => {
-            return eventType2.length - eventType1.length;
-          })
-          .reduce(
-            (acc, [eventTypeName, eventType]) => ({
-              ...acc,
-              [eventTypeName]: eventType,
-            }),
-            {}
-          ),
-      }),
-      {}
-    );
-}
-function parseWorkflows(WorkflowPaths) {
-  const workflowsPaths = getFilesPath(WorkflowPaths);
-  if (workflowsPaths.length < 1) {
-    throw new Error('No workflows found.');
-  }
-  const workflows = workflowsPaths.map(readWorkflowFile);
-  const workflowsByEvent = workflows.reduce(mapWorkflowByEvent, {});
-  const optimizedWorkflowsByEvent = Object.entries(workflowsByEvent).reduce(
-    mergeSimilarEventsMap,
-    {}
-  );
-  const orderedWorkflows = orderWorkflows(optimizedWorkflowsByEvent);
-  return orderedWorkflows;
-}
-function getEventTypes(eventName, event) {
-  let eventTypes = event ? event.types || event.branches : null;
-  if (!eventTypes) {
-    if (eventName === 'schedule') {
-      eventTypes = event.map((type) => type[Object.keys(type)[0]]);
-    } else eventTypes = [JSON.stringify(event)];
-  }
-  return eventTypes;
-}
-function mapWorkflowByEvent(acc, workflow) {
-  Object.entries(workflow.on).forEach(([eventName, event]) => {
-    if (!acc[eventName]) {
-      acc[eventName] = {};
-    }
-    const eventTypes = getEventTypes(eventName, event);
-    eventTypes.forEach((eventType) => {
-      if (!acc[eventName][eventType]) {
-        acc[eventName][eventType] = [];
-      }
-      acc[eventName][eventType].push({
-        workflowName: workflow.name,
-        workflowPath: workflow.path,
-        desc: 'A short description about the workflow will appear here...',
-        jobs: getJobs(workflow.jobs),
-      });
-    });
-  });
-  return acc;
-}
-function getJobs(jobs) {
-  const jobsMap = Object.entries(jobs).reduce((acc, [jobName, job]) => {
-    acc[job.name] = jobs[jobName].steps.map((step) => step.name);
-    return acc;
-  }, {});
-  return jobsMap;
-}
-function mergeSimilarEventsMap(acc, [eventName, event]) {
-  acc[eventName] = Object.entries(event).reduce(
-    (acc, [eventTypeName, eventType], index, eventTypes) => {
-      /////
-      const matchedTypeNames = [];
-      for (let i = eventTypes.length - 1; i >= 0; i--) {
-        const [itemTypeName, itemTypeValue] = eventTypes[i];
-        if (
-          eventTypeName !== itemTypeName &&
-          JSON.stringify(eventType) === JSON.stringify(itemTypeValue)
-        ) {
-          matchedTypeNames.push(itemTypeName);
-          eventTypes.splice(i, 1);
-        }
-      }
-      if (matchedTypeNames.length > 0) {
-        acc[
-          matchedTypeNames.reduce((acc, name) => {
-            acc += ', ' + name;
-            return acc;
-          }, eventTypeName)
-        ] = eventType;
-      } else {
-        acc[eventTypeName] = eventType;
-      }
-      return acc;
-    },
-    {}
-  );
-  return acc;
-}
-
-module.exports = parseWorkflows;
-
-
-/***/ }),
-
-/***/ 6751:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const fs = __nccwpck_require__(5747);
-const path = __nccwpck_require__(5622);
-
-function getMarkdownHeaderId(str) {
-  return str.toLowerCase().replace(/\s/g, '-');
-}
-
-//get file paths from a directory
-function getFilesPath(dir) {
-  var filePaths = [];
-  var files = fs.readdirSync(dir);
-  for (var i = 0; i < files.length; i++) {
-    if (files[i].endsWith('.yml') || files[i].endsWith('.yaml')) {
-      filePaths.push(path.join(dir, files[i]));
-    }
-  }
-  return filePaths;
-}
-
-function toTitleCase(str) {
-  const formatted = str.replace(/_/g, ' ').replace(/\w\S*/g, function (txt) {
-    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-  });
-  switch (str) {
-    case 'schedule':
-      return 'Schedules:';
-    default:
-      return `When ${formatted}:`;
-  }
-}
-
-//write string to file
-function writeFile(filePath, content) {
-  fs.writeFile(filePath, content, function (err) {
-    if (err) {
-      throw err;
-    }
-    console.log(`The file ${filePath} was saved!`);
-  });
-}
-module.exports = {
-  getFilesPath,
-  toTitleCase,
-  getMarkdownHeaderId,
-  writeFile,
-};
-
-
-/***/ }),
-
-/***/ 8766:
+/***/ 1917:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
 
-var loader = __nccwpck_require__(3117);
-var dumper = __nccwpck_require__(7703);
+var loader = __nccwpck_require__(1161);
+var dumper = __nccwpck_require__(8866);
 
 
 function renamed(from, to) {
@@ -2907,32 +2358,32 @@ function renamed(from, to) {
 }
 
 
-module.exports.Type = __nccwpck_require__(2272);
-module.exports.Schema = __nccwpck_require__(2286);
-module.exports.FAILSAFE_SCHEMA = __nccwpck_require__(7418);
-module.exports.JSON_SCHEMA = __nccwpck_require__(6715);
-module.exports.CORE_SCHEMA = __nccwpck_require__(4545);
-module.exports.DEFAULT_SCHEMA = __nccwpck_require__(2543);
+module.exports.Type = __nccwpck_require__(6073);
+module.exports.Schema = __nccwpck_require__(1082);
+module.exports.FAILSAFE_SCHEMA = __nccwpck_require__(8562);
+module.exports.JSON_SCHEMA = __nccwpck_require__(1035);
+module.exports.CORE_SCHEMA = __nccwpck_require__(2011);
+module.exports.DEFAULT_SCHEMA = __nccwpck_require__(8759);
 module.exports.load                = loader.load;
 module.exports.loadAll             = loader.loadAll;
 module.exports.dump                = dumper.dump;
-module.exports.YAMLException = __nccwpck_require__(3246);
+module.exports.YAMLException = __nccwpck_require__(8179);
 
 // Re-export all types in case user wants to create custom schema
 module.exports.types = {
-  binary:    __nccwpck_require__(3277),
-  float:     __nccwpck_require__(4521),
-  map:       __nccwpck_require__(6634),
-  null:      __nccwpck_require__(4694),
-  pairs:     __nccwpck_require__(9294),
-  set:       __nccwpck_require__(427),
-  timestamp: __nccwpck_require__(7474),
-  bool:      __nccwpck_require__(4399),
-  int:       __nccwpck_require__(6888),
-  merge:     __nccwpck_require__(4506),
-  omap:      __nccwpck_require__(5379),
-  seq:       __nccwpck_require__(2316),
-  str:       __nccwpck_require__(4423)
+  binary:    __nccwpck_require__(7900),
+  float:     __nccwpck_require__(2705),
+  map:       __nccwpck_require__(6150),
+  null:      __nccwpck_require__(721),
+  pairs:     __nccwpck_require__(6860),
+  set:       __nccwpck_require__(9548),
+  timestamp: __nccwpck_require__(9212),
+  bool:      __nccwpck_require__(4993),
+  int:       __nccwpck_require__(1615),
+  merge:     __nccwpck_require__(6104),
+  omap:      __nccwpck_require__(9046),
+  seq:       __nccwpck_require__(7283),
+  str:       __nccwpck_require__(3619)
 };
 
 // Removed functions from JS-YAML 3.0.x
@@ -2943,7 +2394,7 @@ module.exports.safeDump            = renamed('safeDump', 'dump');
 
 /***/ }),
 
-/***/ 268:
+/***/ 6829:
 /***/ ((module) => {
 
 "use strict";
@@ -3010,7 +2461,7 @@ module.exports.extend         = extend;
 
 /***/ }),
 
-/***/ 7703:
+/***/ 8866:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -3018,9 +2469,9 @@ module.exports.extend         = extend;
 
 /*eslint-disable no-use-before-define*/
 
-var common              = __nccwpck_require__(268);
-var YAMLException       = __nccwpck_require__(3246);
-var DEFAULT_SCHEMA      = __nccwpck_require__(2543);
+var common              = __nccwpck_require__(6829);
+var YAMLException       = __nccwpck_require__(8179);
+var DEFAULT_SCHEMA      = __nccwpck_require__(8759);
 
 var _toString       = Object.prototype.toString;
 var _hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -3983,7 +3434,7 @@ module.exports.dump = dump;
 
 /***/ }),
 
-/***/ 3246:
+/***/ 8179:
 /***/ ((module) => {
 
 "use strict";
@@ -4046,7 +3497,7 @@ module.exports = YAMLException;
 
 /***/ }),
 
-/***/ 3117:
+/***/ 1161:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -4054,10 +3505,10 @@ module.exports = YAMLException;
 
 /*eslint-disable max-len,no-use-before-define*/
 
-var common              = __nccwpck_require__(268);
-var YAMLException       = __nccwpck_require__(3246);
-var makeSnippet         = __nccwpck_require__(6407);
-var DEFAULT_SCHEMA      = __nccwpck_require__(2543);
+var common              = __nccwpck_require__(6829);
+var YAMLException       = __nccwpck_require__(8179);
+var makeSnippet         = __nccwpck_require__(6975);
+var DEFAULT_SCHEMA      = __nccwpck_require__(8759);
 
 
 var _hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -5781,7 +5232,7 @@ module.exports.load    = load;
 
 /***/ }),
 
-/***/ 2286:
+/***/ 1082:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -5789,8 +5240,8 @@ module.exports.load    = load;
 
 /*eslint-disable max-len*/
 
-var YAMLException = __nccwpck_require__(3246);
-var Type          = __nccwpck_require__(2272);
+var YAMLException = __nccwpck_require__(8179);
+var Type          = __nccwpck_require__(6073);
 
 
 function compileList(schema, name) {
@@ -5910,7 +5361,7 @@ module.exports = Schema;
 
 /***/ }),
 
-/***/ 4545:
+/***/ 2011:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -5924,12 +5375,12 @@ module.exports = Schema;
 
 
 
-module.exports = __nccwpck_require__(6715);
+module.exports = __nccwpck_require__(1035);
 
 
 /***/ }),
 
-/***/ 2543:
+/***/ 8759:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -5943,23 +5394,23 @@ module.exports = __nccwpck_require__(6715);
 
 
 
-module.exports = __nccwpck_require__(4545).extend({
+module.exports = (__nccwpck_require__(2011).extend)({
   implicit: [
-    __nccwpck_require__(7474),
-    __nccwpck_require__(4506)
+    __nccwpck_require__(9212),
+    __nccwpck_require__(6104)
   ],
   explicit: [
-    __nccwpck_require__(3277),
-    __nccwpck_require__(5379),
-    __nccwpck_require__(9294),
-    __nccwpck_require__(427)
+    __nccwpck_require__(7900),
+    __nccwpck_require__(9046),
+    __nccwpck_require__(6860),
+    __nccwpck_require__(9548)
   ]
 });
 
 
 /***/ }),
 
-/***/ 7418:
+/***/ 8562:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -5970,21 +5421,21 @@ module.exports = __nccwpck_require__(4545).extend({
 
 
 
-var Schema = __nccwpck_require__(2286);
+var Schema = __nccwpck_require__(1082);
 
 
 module.exports = new Schema({
   explicit: [
-    __nccwpck_require__(4423),
-    __nccwpck_require__(2316),
-    __nccwpck_require__(6634)
+    __nccwpck_require__(3619),
+    __nccwpck_require__(7283),
+    __nccwpck_require__(6150)
   ]
 });
 
 
 /***/ }),
 
-/***/ 6715:
+/***/ 1035:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -5999,26 +5450,26 @@ module.exports = new Schema({
 
 
 
-module.exports = __nccwpck_require__(7418).extend({
+module.exports = (__nccwpck_require__(8562).extend)({
   implicit: [
-    __nccwpck_require__(4694),
-    __nccwpck_require__(4399),
-    __nccwpck_require__(6888),
-    __nccwpck_require__(4521)
+    __nccwpck_require__(721),
+    __nccwpck_require__(4993),
+    __nccwpck_require__(1615),
+    __nccwpck_require__(2705)
   ]
 });
 
 
 /***/ }),
 
-/***/ 6407:
+/***/ 6975:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
 
-var common = __nccwpck_require__(268);
+var common = __nccwpck_require__(6829);
 
 
 // get snippet for a single line, respecting maxLength
@@ -6120,13 +5571,13 @@ module.exports = makeSnippet;
 
 /***/ }),
 
-/***/ 2272:
+/***/ 6073:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var YAMLException = __nccwpck_require__(3246);
+var YAMLException = __nccwpck_require__(8179);
 
 var TYPE_CONSTRUCTOR_OPTIONS = [
   'kind',
@@ -6194,7 +5645,7 @@ module.exports = Type;
 
 /***/ }),
 
-/***/ 3277:
+/***/ 7900:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -6203,7 +5654,7 @@ module.exports = Type;
 /*eslint-disable no-bitwise*/
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 
 // [ 64, 65, 66 ] -> [ padding, CR, LF ]
@@ -6327,13 +5778,13 @@ module.exports = new Type('tag:yaml.org,2002:binary', {
 
 /***/ }),
 
-/***/ 4399:
+/***/ 4993:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 function resolveYamlBoolean(data) {
   if (data === null) return false;
@@ -6370,14 +5821,14 @@ module.exports = new Type('tag:yaml.org,2002:bool', {
 
 /***/ }),
 
-/***/ 4521:
+/***/ 2705:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var common = __nccwpck_require__(268);
-var Type   = __nccwpck_require__(2272);
+var common = __nccwpck_require__(6829);
+var Type   = __nccwpck_require__(6073);
 
 var YAML_FLOAT_PATTERN = new RegExp(
   // 2.5e4, 2.5 and integers
@@ -6475,14 +5926,14 @@ module.exports = new Type('tag:yaml.org,2002:float', {
 
 /***/ }),
 
-/***/ 6888:
+/***/ 1615:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var common = __nccwpck_require__(268);
-var Type   = __nccwpck_require__(2272);
+var common = __nccwpck_require__(6829);
+var Type   = __nccwpck_require__(6073);
 
 function isHexCode(c) {
   return ((0x30/* 0 */ <= c) && (c <= 0x39/* 9 */)) ||
@@ -6639,13 +6090,13 @@ module.exports = new Type('tag:yaml.org,2002:int', {
 
 /***/ }),
 
-/***/ 6634:
+/***/ 6150:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 module.exports = new Type('tag:yaml.org,2002:map', {
   kind: 'mapping',
@@ -6655,13 +6106,13 @@ module.exports = new Type('tag:yaml.org,2002:map', {
 
 /***/ }),
 
-/***/ 4506:
+/***/ 6104:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 function resolveYamlMerge(data) {
   return data === '<<' || data === null;
@@ -6675,13 +6126,13 @@ module.exports = new Type('tag:yaml.org,2002:merge', {
 
 /***/ }),
 
-/***/ 4694:
+/***/ 721:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 function resolveYamlNull(data) {
   if (data === null) return true;
@@ -6718,13 +6169,13 @@ module.exports = new Type('tag:yaml.org,2002:null', {
 
 /***/ }),
 
-/***/ 5379:
+/***/ 9046:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 var _hasOwnProperty = Object.prototype.hasOwnProperty;
 var _toString       = Object.prototype.toString;
@@ -6770,13 +6221,13 @@ module.exports = new Type('tag:yaml.org,2002:omap', {
 
 /***/ }),
 
-/***/ 9294:
+/***/ 6860:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 var _toString = Object.prototype.toString;
 
@@ -6831,13 +6282,13 @@ module.exports = new Type('tag:yaml.org,2002:pairs', {
 
 /***/ }),
 
-/***/ 2316:
+/***/ 7283:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 module.exports = new Type('tag:yaml.org,2002:seq', {
   kind: 'sequence',
@@ -6847,13 +6298,13 @@ module.exports = new Type('tag:yaml.org,2002:seq', {
 
 /***/ }),
 
-/***/ 427:
+/***/ 9548:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 var _hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -6884,13 +6335,13 @@ module.exports = new Type('tag:yaml.org,2002:set', {
 
 /***/ }),
 
-/***/ 4423:
+/***/ 3619:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 module.exports = new Type('tag:yaml.org,2002:str', {
   kind: 'scalar',
@@ -6900,13 +6351,13 @@ module.exports = new Type('tag:yaml.org,2002:str', {
 
 /***/ }),
 
-/***/ 7474:
+/***/ 9212:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Type = __nccwpck_require__(2272);
+var Type = __nccwpck_require__(6073);
 
 var YAML_DATE_REGEXP = new RegExp(
   '^([0-9][0-9][0-9][0-9])'          + // [1] year
@@ -6996,7 +6447,556 @@ module.exports = new Type('tag:yaml.org,2002:timestamp', {
 
 /***/ }),
 
-/***/ 2357:
+/***/ 4294:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+module.exports = __nccwpck_require__(4219);
+
+
+/***/ }),
+
+/***/ 4219:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+var net = __nccwpck_require__(1808);
+var tls = __nccwpck_require__(4404);
+var http = __nccwpck_require__(3685);
+var https = __nccwpck_require__(5687);
+var events = __nccwpck_require__(2361);
+var assert = __nccwpck_require__(9491);
+var util = __nccwpck_require__(3837);
+
+
+exports.httpOverHttp = httpOverHttp;
+exports.httpsOverHttp = httpsOverHttp;
+exports.httpOverHttps = httpOverHttps;
+exports.httpsOverHttps = httpsOverHttps;
+
+
+function httpOverHttp(options) {
+  var agent = new TunnelingAgent(options);
+  agent.request = http.request;
+  return agent;
+}
+
+function httpsOverHttp(options) {
+  var agent = new TunnelingAgent(options);
+  agent.request = http.request;
+  agent.createSocket = createSecureSocket;
+  agent.defaultPort = 443;
+  return agent;
+}
+
+function httpOverHttps(options) {
+  var agent = new TunnelingAgent(options);
+  agent.request = https.request;
+  return agent;
+}
+
+function httpsOverHttps(options) {
+  var agent = new TunnelingAgent(options);
+  agent.request = https.request;
+  agent.createSocket = createSecureSocket;
+  agent.defaultPort = 443;
+  return agent;
+}
+
+
+function TunnelingAgent(options) {
+  var self = this;
+  self.options = options || {};
+  self.proxyOptions = self.options.proxy || {};
+  self.maxSockets = self.options.maxSockets || http.Agent.defaultMaxSockets;
+  self.requests = [];
+  self.sockets = [];
+
+  self.on('free', function onFree(socket, host, port, localAddress) {
+    var options = toOptions(host, port, localAddress);
+    for (var i = 0, len = self.requests.length; i < len; ++i) {
+      var pending = self.requests[i];
+      if (pending.host === options.host && pending.port === options.port) {
+        // Detect the request to connect same origin server,
+        // reuse the connection.
+        self.requests.splice(i, 1);
+        pending.request.onSocket(socket);
+        return;
+      }
+    }
+    socket.destroy();
+    self.removeSocket(socket);
+  });
+}
+util.inherits(TunnelingAgent, events.EventEmitter);
+
+TunnelingAgent.prototype.addRequest = function addRequest(req, host, port, localAddress) {
+  var self = this;
+  var options = mergeOptions({request: req}, self.options, toOptions(host, port, localAddress));
+
+  if (self.sockets.length >= this.maxSockets) {
+    // We are over limit so we'll add it to the queue.
+    self.requests.push(options);
+    return;
+  }
+
+  // If we are under maxSockets create a new one.
+  self.createSocket(options, function(socket) {
+    socket.on('free', onFree);
+    socket.on('close', onCloseOrRemove);
+    socket.on('agentRemove', onCloseOrRemove);
+    req.onSocket(socket);
+
+    function onFree() {
+      self.emit('free', socket, options);
+    }
+
+    function onCloseOrRemove(err) {
+      self.removeSocket(socket);
+      socket.removeListener('free', onFree);
+      socket.removeListener('close', onCloseOrRemove);
+      socket.removeListener('agentRemove', onCloseOrRemove);
+    }
+  });
+};
+
+TunnelingAgent.prototype.createSocket = function createSocket(options, cb) {
+  var self = this;
+  var placeholder = {};
+  self.sockets.push(placeholder);
+
+  var connectOptions = mergeOptions({}, self.proxyOptions, {
+    method: 'CONNECT',
+    path: options.host + ':' + options.port,
+    agent: false,
+    headers: {
+      host: options.host + ':' + options.port
+    }
+  });
+  if (options.localAddress) {
+    connectOptions.localAddress = options.localAddress;
+  }
+  if (connectOptions.proxyAuth) {
+    connectOptions.headers = connectOptions.headers || {};
+    connectOptions.headers['Proxy-Authorization'] = 'Basic ' +
+        new Buffer(connectOptions.proxyAuth).toString('base64');
+  }
+
+  debug('making CONNECT request');
+  var connectReq = self.request(connectOptions);
+  connectReq.useChunkedEncodingByDefault = false; // for v0.6
+  connectReq.once('response', onResponse); // for v0.6
+  connectReq.once('upgrade', onUpgrade);   // for v0.6
+  connectReq.once('connect', onConnect);   // for v0.7 or later
+  connectReq.once('error', onError);
+  connectReq.end();
+
+  function onResponse(res) {
+    // Very hacky. This is necessary to avoid http-parser leaks.
+    res.upgrade = true;
+  }
+
+  function onUpgrade(res, socket, head) {
+    // Hacky.
+    process.nextTick(function() {
+      onConnect(res, socket, head);
+    });
+  }
+
+  function onConnect(res, socket, head) {
+    connectReq.removeAllListeners();
+    socket.removeAllListeners();
+
+    if (res.statusCode !== 200) {
+      debug('tunneling socket could not be established, statusCode=%d',
+        res.statusCode);
+      socket.destroy();
+      var error = new Error('tunneling socket could not be established, ' +
+        'statusCode=' + res.statusCode);
+      error.code = 'ECONNRESET';
+      options.request.emit('error', error);
+      self.removeSocket(placeholder);
+      return;
+    }
+    if (head.length > 0) {
+      debug('got illegal response body from proxy');
+      socket.destroy();
+      var error = new Error('got illegal response body from proxy');
+      error.code = 'ECONNRESET';
+      options.request.emit('error', error);
+      self.removeSocket(placeholder);
+      return;
+    }
+    debug('tunneling connection has established');
+    self.sockets[self.sockets.indexOf(placeholder)] = socket;
+    return cb(socket);
+  }
+
+  function onError(cause) {
+    connectReq.removeAllListeners();
+
+    debug('tunneling socket could not be established, cause=%s\n',
+          cause.message, cause.stack);
+    var error = new Error('tunneling socket could not be established, ' +
+                          'cause=' + cause.message);
+    error.code = 'ECONNRESET';
+    options.request.emit('error', error);
+    self.removeSocket(placeholder);
+  }
+};
+
+TunnelingAgent.prototype.removeSocket = function removeSocket(socket) {
+  var pos = this.sockets.indexOf(socket)
+  if (pos === -1) {
+    return;
+  }
+  this.sockets.splice(pos, 1);
+
+  var pending = this.requests.shift();
+  if (pending) {
+    // If we have pending requests and a socket gets closed a new one
+    // needs to be created to take over in the pool for the one that closed.
+    this.createSocket(pending, function(socket) {
+      pending.request.onSocket(socket);
+    });
+  }
+};
+
+function createSecureSocket(options, cb) {
+  var self = this;
+  TunnelingAgent.prototype.createSocket.call(self, options, function(socket) {
+    var hostHeader = options.request.getHeader('host');
+    var tlsOptions = mergeOptions({}, self.options, {
+      socket: socket,
+      servername: hostHeader ? hostHeader.replace(/:.*$/, '') : options.host
+    });
+
+    // 0 is dummy port for v0.6
+    var secureSocket = tls.connect(0, tlsOptions);
+    self.sockets[self.sockets.indexOf(socket)] = secureSocket;
+    cb(secureSocket);
+  });
+}
+
+
+function toOptions(host, port, localAddress) {
+  if (typeof host === 'string') { // since v0.10
+    return {
+      host: host,
+      port: port,
+      localAddress: localAddress
+    };
+  }
+  return host; // for v0.11 or later
+}
+
+function mergeOptions(target) {
+  for (var i = 1, len = arguments.length; i < len; ++i) {
+    var overrides = arguments[i];
+    if (typeof overrides === 'object') {
+      var keys = Object.keys(overrides);
+      for (var j = 0, keyLen = keys.length; j < keyLen; ++j) {
+        var k = keys[j];
+        if (overrides[k] !== undefined) {
+          target[k] = overrides[k];
+        }
+      }
+    }
+  }
+  return target;
+}
+
+
+var debug;
+if (process.env.NODE_DEBUG && /\btunnel\b/.test(process.env.NODE_DEBUG)) {
+  debug = function() {
+    var args = Array.prototype.slice.call(arguments);
+    if (typeof args[0] === 'string') {
+      args[0] = 'TUNNEL: ' + args[0];
+    } else {
+      args.unshift('TUNNEL:');
+    }
+    console.error.apply(console, args);
+  }
+} else {
+  debug = function() {};
+}
+exports.debug = debug; // for test
+
+
+/***/ }),
+
+/***/ 6318:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+module.exports = __nccwpck_require__(34);
+
+
+/***/ }),
+
+/***/ 34:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const parseWorkflows = __nccwpck_require__(2083);
+const cronstrue = __nccwpck_require__(622);
+const { getMarkdownHeaderId, toTitleCase, writeFile } = __nccwpck_require__(6751);
+
+function getWorkflowsMarkdown(path) {
+  try {
+    const workflowsWithEvents = parseWorkflows(path);
+    const workflowTriggersMarkdown = workflowsToTable(workflowsWithEvents);
+    const workflowsMarkdown = workflowsInfoToMarkdown(workflowsWithEvents);
+
+    return workflowTriggersMarkdown + workflowsMarkdown;
+  } catch (error) {
+    throw error;
+  }
+}
+function workflowsInfoToMarkdown(workflows) {
+  const steps = [];
+  Object.entries(workflows).forEach(([, event]) => {
+    Object.entries(event).forEach(([, eventType]) => {
+      steps.push(...eventType);
+    });
+  });
+
+  const stepsWithoutDuplicates = removeDuplicates(steps);
+  return stepsWithoutDuplicates.reduce((acc, step) => {
+    acc += `| [${step.workflowName}](${step.workflowPath
+      .replace(/\\/g, '/')
+      .substring(4)}) | ${step.desc} |\n`;
+    return acc;
+  }, `## Workflows \n\n | Workflow | Description | \n | --- | --- | \n`);
+}
+//remove duplicated objects from array
+function removeDuplicates(arr) {
+  return arr.filter(
+    (workflow, index, self) =>
+      index ===
+      self.findIndex(
+        (t) =>
+          t.workflowName === workflow.workflowName &&
+          t.workflowPath === workflow.workflowPath
+      )
+  );
+}
+
+function workflowsToTable(workflows) {
+  const table = Object.entries(workflows).reduce((acc, [eventName, value]) => {
+    // generate title and headers
+    const event_talbe = Object.entries(value).reduce(
+      (acc, [key, value]) => {
+        acc[0] += `<th>${
+          eventName === 'schedule' ? cronstrue.toString(key) : key
+        } </th>`;
+
+        acc[1] +=
+          '<td>' +
+          value.reduce(
+            (acc, details) =>
+              (acc += `<li><a href='#${getMarkdownHeaderId(
+                details.workflowName
+              )}'>${details.workflowName}</a></li>`),
+            '<ul>'
+          );
+        acc[1] += '</ul>';
+
+        return acc;
+      },
+      [`\n<th rowspan=2>${toTitleCase(eventName)}</th>`, '']
+    );
+    acc += `<tr>${event_talbe[0]}</tr>\n<tr>${event_talbe[1]}</tr>`;
+    return acc;
+  }, '\n');
+  return `## Event-Workflow Map\n\n<table>${table}</table>\n\n`;
+}
+
+module.exports = {
+  getWorkflowsMarkdown,
+  writeFile,
+};
+
+
+/***/ }),
+
+/***/ 2083:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const fs = __nccwpck_require__(7147);
+const path = __nccwpck_require__(1017);
+const yaml = __nccwpck_require__(1917);
+const { getFilesPath } = __nccwpck_require__(6751);
+
+function readWorkflowFile(workflow) {
+  const doc = yaml.load(fs.readFileSync(workflow));
+  return { ...doc, path: workflow };
+}
+function orderWorkflows(workflows) {
+  return Object.entries(workflows)
+    .sort(
+      ([, event], [, event2]) =>
+        Object.keys(event2).length - Object.keys(event).length
+    )
+    .reduce(
+      (acc, [eventName, event]) => ({
+        ...acc,
+        [eventName]: Object.entries(event)
+          .sort(([, eventType1], [, eventType2]) => {
+            return eventType2.length - eventType1.length;
+          })
+          .reduce(
+            (acc, [eventTypeName, eventType]) => ({
+              ...acc,
+              [eventTypeName]: eventType,
+            }),
+            {}
+          ),
+      }),
+      {}
+    );
+}
+function parseWorkflows(WorkflowPaths) {
+  const workflowsPaths = getFilesPath(WorkflowPaths);
+  if (workflowsPaths.length < 1) {
+    throw new Error('No workflows found.');
+  }
+  const workflows = workflowsPaths.map(readWorkflowFile);
+  const workflowsByEvent = workflows.reduce(mapWorkflowByEvent, {});
+  const optimizedWorkflowsByEvent = Object.entries(workflowsByEvent).reduce(
+    mergeSimilarEventsMap,
+    {}
+  );
+  const orderedWorkflows = orderWorkflows(optimizedWorkflowsByEvent);
+  return orderedWorkflows;
+}
+function getEventTypes(eventName, event) {
+  let eventTypes = event ? event.types || event.branches : null;
+  if (!eventTypes) {
+    if (eventName === 'schedule') {
+      eventTypes = event.map((type) => type[Object.keys(type)[0]]);
+    } else eventTypes = [JSON.stringify(event)];
+  }
+  return eventTypes;
+}
+function mapWorkflowByEvent(acc, workflow) {
+  Object.entries(workflow.on).forEach(([eventName, event]) => {
+    if (!acc[eventName]) {
+      acc[eventName] = {};
+    }
+    const eventTypes = getEventTypes(eventName, event);
+    eventTypes.forEach((eventType) => {
+      if (!acc[eventName][eventType]) {
+        acc[eventName][eventType] = [];
+      }
+      acc[eventName][eventType].push({
+        workflowName: workflow.name,
+        workflowPath: workflow.path,
+        desc: 'A short description about the workflow will appear here...',
+        jobs: getJobs(workflow.jobs),
+      });
+    });
+  });
+  return acc;
+}
+function getJobs(jobs) {
+  const jobsMap = Object.entries(jobs).reduce((acc, [jobName, job]) => {
+    acc[job.name] = jobs[jobName].steps.map((step) => step.name);
+    return acc;
+  }, {});
+  return jobsMap;
+}
+function mergeSimilarEventsMap(acc, [eventName, event]) {
+  acc[eventName] = Object.entries(event).reduce(
+    (acc, [eventTypeName, eventType], index, eventTypes) => {
+      /////
+      const matchedTypeNames = [];
+      for (let i = eventTypes.length - 1; i >= 0; i--) {
+        const [itemTypeName, itemTypeValue] = eventTypes[i];
+        if (
+          eventTypeName !== itemTypeName &&
+          JSON.stringify(eventType) === JSON.stringify(itemTypeValue)
+        ) {
+          matchedTypeNames.push(itemTypeName);
+          eventTypes.splice(i, 1);
+        }
+      }
+      if (matchedTypeNames.length > 0) {
+        acc[
+          matchedTypeNames.reduce((acc, name) => {
+            acc += ', ' + name;
+            return acc;
+          }, eventTypeName)
+        ] = eventType;
+      } else {
+        acc[eventTypeName] = eventType;
+      }
+      return acc;
+    },
+    {}
+  );
+  return acc;
+}
+
+module.exports = parseWorkflows;
+
+
+/***/ }),
+
+/***/ 6751:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const fs = __nccwpck_require__(7147);
+const path = __nccwpck_require__(1017);
+
+function getMarkdownHeaderId(str) {
+  return str.toLowerCase().replace(/\s/g, '-');
+}
+
+//get file paths from a directory
+function getFilesPath(dir) {
+  var filePaths = [];
+  var files = fs.readdirSync(dir);
+  for (var i = 0; i < files.length; i++) {
+    if (files[i].endsWith('.yml') || files[i].endsWith('.yaml')) {
+      filePaths.push(path.join(dir, files[i]));
+    }
+  }
+  return filePaths;
+}
+
+function toTitleCase(str) {
+  const formatted = str.replace(/_/g, ' ').replace(/\w\S*/g, function (txt) {
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+  switch (str) {
+    case 'schedule':
+      return 'Schedules:';
+    default:
+      return `When ${formatted}:`;
+  }
+}
+
+//write string to file
+function writeFile(filePath, content) {
+  fs.writeFile(filePath, content, function (err) {
+    if (err) {
+      throw err;
+    }
+    console.log(`The file ${filePath} was saved!`);
+  });
+}
+module.exports = {
+  getFilesPath,
+  toTitleCase,
+  getMarkdownHeaderId,
+  writeFile,
+};
+
+
+/***/ }),
+
+/***/ 9491:
 /***/ ((module) => {
 
 "use strict";
@@ -7004,7 +7004,7 @@ module.exports = require("assert");
 
 /***/ }),
 
-/***/ 8614:
+/***/ 2361:
 /***/ ((module) => {
 
 "use strict";
@@ -7012,7 +7012,7 @@ module.exports = require("events");
 
 /***/ }),
 
-/***/ 5747:
+/***/ 7147:
 /***/ ((module) => {
 
 "use strict";
@@ -7020,7 +7020,7 @@ module.exports = require("fs");
 
 /***/ }),
 
-/***/ 8605:
+/***/ 3685:
 /***/ ((module) => {
 
 "use strict";
@@ -7028,7 +7028,7 @@ module.exports = require("http");
 
 /***/ }),
 
-/***/ 7211:
+/***/ 5687:
 /***/ ((module) => {
 
 "use strict";
@@ -7036,7 +7036,7 @@ module.exports = require("https");
 
 /***/ }),
 
-/***/ 1631:
+/***/ 1808:
 /***/ ((module) => {
 
 "use strict";
@@ -7044,7 +7044,7 @@ module.exports = require("net");
 
 /***/ }),
 
-/***/ 2087:
+/***/ 2037:
 /***/ ((module) => {
 
 "use strict";
@@ -7052,7 +7052,7 @@ module.exports = require("os");
 
 /***/ }),
 
-/***/ 5622:
+/***/ 1017:
 /***/ ((module) => {
 
 "use strict";
@@ -7060,7 +7060,7 @@ module.exports = require("path");
 
 /***/ }),
 
-/***/ 4016:
+/***/ 4404:
 /***/ ((module) => {
 
 "use strict";
@@ -7068,7 +7068,7 @@ module.exports = require("tls");
 
 /***/ }),
 
-/***/ 1669:
+/***/ 3837:
 /***/ ((module) => {
 
 "use strict";
@@ -7119,7 +7119,7 @@ var __webpack_exports__ = {};
 (() => {
 const core = __nccwpck_require__(2186);
 const { getWorkflowsMarkdown, writeFile } = __nccwpck_require__(6318);
-const path = __nccwpck_require__(5622);
+const path = __nccwpck_require__(1017);
 
 // most @actions toolkit packages have async methods
 async function run() {
