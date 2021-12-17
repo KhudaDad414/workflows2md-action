@@ -1,13 +1,17 @@
-name: 'Wait'
-description: 'Wait a designated number of milliseconds'
+name: 'Generate Workflows Map'
+description: 'Generate an event-workflow map of your workflows so you know which event triggers which actions in a repo'
 inputs:
-  milliseconds:  # id of input
-    description: 'number of milliseconds to wait'
+  input:
+    description: 'Relative path under $GITHUB_WORKSPACE to the workflows folder.'
     required: true
-    default: '1000'
+    default: '.github/workflows'
+  output:
+    description: 'Relative path under $GITHUB_WORKSPACE to the output .md file.'
+    required: true
+    default: 'WORKFLOWS.md'
 outputs:
-  time: # output will be available to future steps
-    description: 'The current time after waiting'
+  path: 
+    description: 'The path to the saved file.'
 runs:
   using: 'node12'
   main: 'dist/index.js'
