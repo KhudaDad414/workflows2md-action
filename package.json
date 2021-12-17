@@ -29,7 +29,7 @@
     "workflows-to-markdown": "^0.0.6"
   },
   "devDependencies": {
-    "@vercel/ncc": "^0.31.1",
+    "@vercel/ncc": "^0.33.0",
     "eslint": "^8.0.0"
   }
 }
