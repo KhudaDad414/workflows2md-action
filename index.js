@@ -6,7 +6,7 @@ const path = require('path');
 async function run() {
   try {
     const input = core.getInput('input') || '.github/workflows';
-    const output = core.getInput('output') || '.github/README.md';
+    const output = core.getInput('output') || 'WORKFLOWS.md';
     const workflows = getWorkflowsMarkdown(
       path.join(process.env.GITHUB_WORKSPACE, input)
     );
