@@ -6930,7 +6930,10 @@ function mapWorkflowByEvent(acc, workflow) {
       return { ...acc, [event]: {} };
     }, {});
   }
-
+  //if `on` is an string then convert it into object
+  if (typeof myVar === 'string' || myVar instanceof String) {
+    workflow.on = { [workflow.on]: {} };
+  }
   Object.entries(workflow.on).forEach(([eventName, event]) => {
     const eventTypes = getEventTypes(eventName, event);
     eventName = eventName.replace(/_/g, '_ ');
