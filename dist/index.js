@@ -7016,7 +7016,6 @@ function writeFile(filePath, content) {
 }
 module.exports = {
   getFilesPath,
-  toTitleCase,
   getMarkdownHeaderId,
   writeFile,
 };

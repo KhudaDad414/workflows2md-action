@@ -26,7 +26,7 @@
   "homepage": "https://github.com/actions/javascript-action#readme",
   "dependencies": {
     "@actions/core": "^1.2.5",
-    "workflows-to-markdown": "^0.0.7"
+    "workflows-to-markdown": "^0.0.8"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.33.0",
