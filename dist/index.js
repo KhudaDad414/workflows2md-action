@@ -6763,9 +6763,11 @@ function workflowsInfoToMarkdown(workflows) {
 
   const stepsWithoutDuplicates = removeDuplicates(steps);
   return stepsWithoutDuplicates.reduce((acc, step) => {
-    acc += `| [${step.workflowName}](${step.workflowPath
+    acc += `| <a href="${step.workflowPath
       .replace(/\\/g, '/')
-      .substring(4)}) | ${step.desc} |\n`;
+      .substring(4)}" id="${getMarkdownHeaderId(step.workflowName)}">${
+      step.workflowName
+    }</a> | ${step.desc} |\n`;
     return acc;
   }, `## Workflows \n\n | Workflow | Description | \n | --- | --- | \n`);
 }
@@ -6787,10 +6789,7 @@ function workflowsToTable(workflows) {
     // generate title and headers
     const event_talbe = Object.entries(value).reduce(
       (acc, [key, value]) => {
-        acc[0] += `<th>${
-          eventName === 'schedule' ? cronstrue.toString(key) : key
-        } </th>`;
-
+        acc[0] += `<th>${key}</th>`;
         acc[1] +=
           '<td>' +
           value.reduce(
@@ -6804,7 +6803,7 @@ function workflowsToTable(workflows) {
 
         return acc;
       },
-      [`\n<th rowspan=2>${toTitleCase(eventName)}</th>`, '']
+      [`\n<th rowspan=2><code>${eventName}</code></th>`, '']
     );
     acc += `<tr>${event_talbe[0]}</tr>\n<tr>${event_talbe[1]}</tr>`;
     return acc;
@@ -6824,13 +6823,28 @@ module.exports = {
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const fs = __nccwpck_require__(7147);
-const path = __nccwpck_require__(1017);
 const yaml = __nccwpck_require__(1917);
+const cronstrue = __nccwpck_require__(622);
 const { getFilesPath } = __nccwpck_require__(6751);
 
-function readWorkflowFile(workflow) {
-  const doc = yaml.load(fs.readFileSync(workflow));
-  return { ...doc, path: workflow };
+function getDescription(string) {
+  console.log(string);
+  //loop over lines
+  const lines = string.split('\n').map((line) => line.trim());
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith('#') && lines[i - 1].startsWith('name:')) {
+      return line.substring(1);
+    }
+  }
+  return null;
+}
+function readWorkflowFile(path) {
+  const file = fs.readFileSync(path, 'utf8');
+  const doc = yaml.load(file);
+  const desc = getDescription(file);
+  console.log(desc);
+  return { ...doc, path, desc };
 }
 function orderWorkflows(workflows) {
   return Object.entries(workflows)
@@ -6871,20 +6885,46 @@ function parseWorkflows(WorkflowPaths) {
   return orderedWorkflows;
 }
 function getEventTypes(eventName, event) {
-  let eventTypes = event ? event.types || event.branches : null;
-  if (!eventTypes) {
-    if (eventName === 'schedule') {
-      eventTypes = event.map((type) => type[Object.keys(type)[0]]);
-    } else eventTypes = [JSON.stringify(event)];
+  if (!event) {
+    return ['any'];
   }
-  return eventTypes;
+  switch (eventName) {
+    case 'push':
+      return event.branches || event.tags || event.paths || ['any'];
+    case 'discussion':
+    case 'discussion_comment':
+    case 'issue_comment':
+    case 'issues':
+    case 'label':
+    case 'milestone':
+    case 'page_build':
+    case 'project':
+    case 'project_card':
+    case 'project_column':
+    case 'pull_request':
+    case 'pull_request_review':
+    case 'pull_request_review_comment':
+    case 'pull_request_target':
+    case 'registry_package':
+    case 'release':
+    case 'workflow_run':
+      return event.types || ['any'];
+    case 'schedule':
+      return event.map((type) =>
+        cronstrue.toString(type[Object.keys(type)[0]])
+      );
+    case 'workflow_dispatch':
+      return ['on dispatch'];
+  }
 }
 function mapWorkflowByEvent(acc, workflow) {
   Object.entries(workflow.on).forEach(([eventName, event]) => {
+    const eventTypes = getEventTypes(eventName, event);
+    eventName = eventName.replace(/_/g, '_ ');
     if (!acc[eventName]) {
       acc[eventName] = {};
     }
-    const eventTypes = getEventTypes(eventName, event);
+
     eventTypes.forEach((eventType) => {
       if (!acc[eventName][eventType]) {
         acc[eventName][eventType] = [];
@@ -6892,7 +6932,9 @@ function mapWorkflowByEvent(acc, workflow) {
       acc[eventName][eventType].push({
         workflowName: workflow.name,
         workflowPath: workflow.path,
-        desc: 'A short description about the workflow will appear here...',
+        desc:
+          workflow.desc ||
+          'Your first comment after <code>name</code> parameter in workflow will appear here.',
         jobs: getJobs(workflow.jobs),
       });
     });
@@ -6906,38 +6948,36 @@ function getJobs(jobs) {
   }, {});
   return jobsMap;
 }
-function mergeSimilarEventsMap(acc, [eventName, event]) {
-  acc[eventName] = Object.entries(event).reduce(
-    (acc, [eventTypeName, eventType], index, eventTypes) => {
-      /////
-      const matchedTypeNames = [];
-      for (let i = eventTypes.length - 1; i >= 0; i--) {
-        const [itemTypeName, itemTypeValue] = eventTypes[i];
-        if (
-          eventTypeName !== itemTypeName &&
-          JSON.stringify(eventType) === JSON.stringify(itemTypeValue)
-        ) {
-          matchedTypeNames.push(itemTypeName);
-          eventTypes.splice(i, 1);
-        }
-      }
-      if (matchedTypeNames.length > 0) {
-        acc[
-          matchedTypeNames.reduce((acc, name) => {
-            acc += ', ' + name;
-            return acc;
-          }, eventTypeName)
-        ] = eventType;
-      } else {
-        acc[eventTypeName] = eventType;
-      }
-      return acc;
-    },
-    {}
-  );
+function reduceEventTypes(acc, [eventTypeName, eventType], index, eventTypes) {
+  const matchedTypeNames = [];
+  for (let i = eventTypes.length - 1; i >= 0; i--) {
+    const [itemTypeName, itemTypeValue] = eventTypes[i];
+    if (
+      eventTypeName !== itemTypeName &&
+      JSON.stringify(eventType) === JSON.stringify(itemTypeValue)
+    ) {
+      matchedTypeNames.push(`<code>${itemTypeName}</code>`);
+      eventTypes.splice(i, 1);
+    }
+  }
+
+  if (matchedTypeNames.length > 0) {
+    acc[matchedTypeNames.join(', ') + `, <code>${eventTypeName}</code>`] =
+      eventType;
+  } else {
+    const isEmpty =
+      !eventTypeName || eventTypeName === {} || eventTypeName === 'null';
+    const eventTypeNameCode = `<code> ${
+      isEmpty ? 'any' : eventTypeName
+    } </code>`;
+    acc[eventTypeNameCode] = eventType;
+  }
   return acc;
 }
-
+function mergeSimilarEventsMap(acc, [eventName, event]) {
+  acc[eventName] = Object.entries(event).reduce(reduceEventTypes, {});
+  return acc;
+}
 module.exports = parseWorkflows;
 
 
@@ -6963,18 +7003,6 @@ function getFilesPath(dir) {
     }
   }
   return filePaths;
-}
-
-function toTitleCase(str) {
-  const formatted = str.replace(/_/g, ' ').replace(/\w\S*/g, function (txt) {
-    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-  });
-  switch (str) {
-    case 'schedule':
-      return 'Schedules:';
-    default:
-      return `When ${formatted}:`;
-  }
 }
 
 //write string to file
