@@ -6731,6 +6731,14 @@ exports.debug = debug; // for test
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 module.exports = __nccwpck_require__(34);
+//TODO remove these before uploading to npm
+
+async function run() {
+  const { getWorkflowsMarkdown } = __nccwpck_require__(34);
+  const markdown = getWorkflowsMarkdown(`.github/workflows`);
+  console.log(markdown);
+}
+run();
 
 
 /***/ }),
@@ -6828,7 +6836,6 @@ const cronstrue = __nccwpck_require__(622);
 const { getFilesPath } = __nccwpck_require__(6751);
 
 function getDescription(string) {
-  console.log(string);
   //loop over lines
   const lines = string.split('\n').map((line) => line.trim());
   for (let i = 1; i < lines.length; i++) {
@@ -6843,7 +6850,6 @@ function readWorkflowFile(path) {
   const file = fs.readFileSync(path, 'utf8');
   const doc = yaml.load(file);
   const desc = getDescription(file);
-  console.log(desc);
   return { ...doc, path, desc };
 }
 function orderWorkflows(workflows) {
@@ -6918,26 +6924,40 @@ function getEventTypes(eventName, event) {
   }
 }
 function mapWorkflowByEvent(acc, workflow) {
+  // if `on` is array then convert it into object
+  if (Array.isArray(workflow.on)) {
+    workflow.on = workflow.on.reduce((acc, event) => {
+      return { ...acc, [event]: {} };
+    }, {});
+  }
+
   Object.entries(workflow.on).forEach(([eventName, event]) => {
     const eventTypes = getEventTypes(eventName, event);
     eventName = eventName.replace(/_/g, '_ ');
     if (!acc[eventName]) {
       acc[eventName] = {};
     }
-
-    eventTypes.forEach((eventType) => {
-      if (!acc[eventName][eventType]) {
-        acc[eventName][eventType] = [];
-      }
-      acc[eventName][eventType].push({
-        workflowName: workflow.name,
-        workflowPath: workflow.path,
-        desc:
-          workflow.desc ||
-          'Your first comment after <code>name</code> parameter in workflow will appear here.',
-        jobs: getJobs(workflow.jobs),
+    try {
+      eventTypes.forEach((eventType) => {
+        if (!acc[eventName][eventType]) {
+          acc[eventName][eventType] = [];
+        }
+        acc[eventName][eventType].push({
+          workflowName: workflow.name,
+          workflowPath: workflow.path,
+          desc:
+            workflow.desc ||
+            'Your first comment after <code>name</code> parameter in workflow will appear here.',
+          jobs: getJobs(workflow.jobs),
+        });
       });
-    });
+    } catch (e) {
+      console.error(
+        'something went wrong while parsing action types',
+        workflow
+      );
+      throw e;
+    }
   });
   return acc;
 }
