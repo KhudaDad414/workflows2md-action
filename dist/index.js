@@ -6771,7 +6771,10 @@ function workflowsInfoToMarkdown(workflows) {
 
   const stepsWithoutDuplicates = removeDuplicates(steps);
   return stepsWithoutDuplicates.reduce((acc, step) => {
-    acc += `| <a href="${step.workflowPath.replace(
+    const workflowPath = process.env.GITHUB_WORKSPACE
+      ? step.workflowPath.split(process.env.GITHUB_WORKSPACE)[1]
+      : step.workflowPath;
+    acc += `| <a href="${workflowPath.replace(
       /\\/g,
       '/'
     )}" id="${getMarkdownHeaderId(step.workflowName)}">${
@@ -6851,7 +6854,6 @@ function readWorkflowFile(path) {
   const file = fs.readFileSync(path, 'utf8');
   const doc = yaml.load(file);
   const desc = getDescription(file);
-  console.log(path);
   return {
     ...doc,
     path,
@@ -6951,7 +6953,6 @@ function mapWorkflowByEvent(acc, workflow) {
         if (!acc[eventName][eventType]) {
           acc[eventName][eventType] = [];
         }
-        console.log(workflow.path);
         acc[eventName][eventType].push({
           workflowName: workflow.name,
           workflowPath: workflow.path,
