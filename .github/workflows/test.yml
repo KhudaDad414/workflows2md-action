@@ -1,4 +1,4 @@
-name: "units-test"
+name: Regenerate map for test workflows
 on:
   pull_request:
   push:
@@ -11,10 +11,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2 
-    - uses: ./
-      id: workflows2md
-    - uses: EndBug/add-and-commit@v7
-      with:
-       cwd: ${{env.GITHUB_WORKSPACE}}
-       add: ${{ steps.workflows2md.outputs.path }}
+      - uses: actions/checkout@v2
+      - uses: ./
+        id: workflows2md
+        with:
+          input: test-workflows
+      - uses: EndBug/add-and-commit@v7
+        with:
+          cwd: ${{env.GITHUB_WORKSPACE}}
+          add: ${{ steps.workflows2md.outputs.path }}
