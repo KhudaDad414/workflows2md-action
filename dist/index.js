@@ -6731,14 +6731,6 @@ exports.debug = debug; // for test
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 module.exports = __nccwpck_require__(34);
-//TODO remove these before uploading to npm
-
-async function run() {
-  const { getWorkflowsMarkdown } = __nccwpck_require__(34);
-  const markdown = getWorkflowsMarkdown(`.github/workflows`);
-  console.log(markdown);
-}
-run();
 
 
 /***/ }),
