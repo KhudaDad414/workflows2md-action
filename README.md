@@ -1,9 +1,9 @@
 # Generate Workflows Map
 
-A GitHub action to create a a map of your event-workflows map your workflows.
+A GitHub action to [create a map](WORKFLOWS.md) of your event-workflows map your workflows.
 
 This action uses [workflows-to-markdown](https://github.com/khudaDad414/workflows-to-markdown) under the hood to generate the file.
-If you have a `node` project it may be easier to use the mentioned cli tool instead of this actions.
+If you have a `node` project or you want to generate the map locally, it may be easier to use the mentioned cli tool instead of this actions.
 This action is designed to generate the `.md` and you can use other actions to create a pull-request or commit to save the result.
 
 Generate Workflows Map action will:
