@@ -79,7 +79,7 @@ jobs:
        cwd: ${{env.GITHUB_WORKSPACE}}
        add: ${{ steps.workflows2md.outputs.path }}
 ```
-## Output Sample
+## Example Output
 This is a map that has been generated from [AsyncAPI's website workflows](https://github.com/asyncapi/website/tree/master/.github/workflows).
 ### Event-Workflow Map
 
