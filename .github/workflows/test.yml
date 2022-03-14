@@ -16,7 +16,7 @@ jobs:
         id: workflows2md
         with:
           input: test-workflows
-      - uses: EndBug/add-and-commit@v7
+      - uses: EndBug/add-and-commit@v9
         with:
           cwd: ${{env.GITHUB_WORKSPACE}}
           add: ${{ steps.workflows2md.outputs.path }}
